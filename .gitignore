@@ -1,1 +1,10 @@
 .idea
+/DerekielV3/DerekielV3.xcodeproj/xcuserdata
+
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
