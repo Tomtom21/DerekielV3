@@ -8,3 +8,9 @@ xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+## venv
+venv/
+
+## Ignoring notebooks
+notebooks/

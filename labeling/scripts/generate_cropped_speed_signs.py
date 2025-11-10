@@ -1,0 +1,1 @@
+# For generating cropped images of speed signs from labeled frames for classifier
