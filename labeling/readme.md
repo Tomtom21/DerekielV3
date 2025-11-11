@@ -4,6 +4,22 @@
 labeling/
 ├── generated_createml/          # Generated CreateML training files
 ├── labelstudio_exports/         # Exports from Label Studio annotation tool
+│   ├── speed_sign_classification      # Exports for speed sign classification, organized by day/time
+│   │   ├── 2024-06-01_10-00/           # Example export for a specific day/time
+│   │   │   ├── export.json             # Exported labels from Label Studio (JSON)
+│   │   │   └── yolo/                   # YOLO-format export for the same data
+│   │   │       ├── images/             # Cropped images for YOLO
+│   │   │       ├── labels/             # YOLO label files
+│   │   │       ├── classes.txt         # YOLO class list
+│   │   │       └── notes.json          # Any notes or metadata
+│   │   └── ...                         # Additional exports by day/time
+│   └── yolo/                           # YOLO exports for object detection
+│       ├── 2024-06-01_10-00/           # Example export for a specific day/time
+│       │   ├── images/                 # Exported images
+│       │   ├── labels/                 # YOLO label files
+│       │   ├── classes.txt             # YOLO class list
+│       │   └── notes.json              # Any notes or metadata
+│       └── ...                         # Additional exports by day/time
 ├── readme.md                    # Project documentation (this file)
 ├── scripts/                     # Scripts for data processing and conversion
 │   ├── createml_converter.py            # Converts data to CreateML format
@@ -22,8 +38,21 @@ labeling/
 
 **Directory Descriptions:**
 
+- **labelstudio_exports/**: Stores exports from the Label Studio annotation tool, organized by model/task.
+  - **speed_sign_classification/**: Contains exports for speed sign classification, organized by day/time. Each export directory (e.g., `2024-06-01_10-00/`) includes:
+    - `export.json`: The exported labels from Label Studio in JSON format.
+    - `yolo/`: A YOLO-format export of the same data, with:
+      - `images/`: Cropped images for YOLO.
+      - `labels/`: YOLO label files.
+      - `classes.txt`: List of YOLO classes.
+      - `notes.json`: Any notes or metadata about the export.
+  - **yolo/**: Contains YOLO-format exports for object detection tasks, organized by day/time. Each export directory (e.g., `2024-06-01_10-00/`) includes:
+    - `images/`: Exported images.
+    - `labels/`: YOLO label files.
+    - `classes.txt`: List of YOLO classes.
+    - `notes.json`: Any notes or metadata about the export.
+
 - **generated_createml/**: Contains training files generated for Apple's CreateML.
-- **labelstudio_exports/**: Stores exports from the Label Studio annotation tool.
 - **readme.md**: Documentation for the labeling directory structure and usage.
 - **scripts/**: Python scripts for processing videos, generating cropped images, converting formats, and setting up the directory structure.
   - **createml_converter.py**: Converts labeled data to CreateML format.
