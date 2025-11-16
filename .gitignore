@@ -14,3 +14,14 @@ venv/
 
 ## Ignoring notebooks
 notebooks/
+
+## Ignoring datasets
+labeling/labelstudio_exports/yolo
+labeling/labelstudio_exports/speed_sign_classification
+labeling/generated_createml
+
+## Ignoring models
+training/yolo
+
+## Ignore all python c files
+*.pyc
