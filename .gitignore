@@ -16,8 +16,7 @@ venv/
 notebooks/
 
 ## Ignoring datasets
-labeling/labelstudio_exports/yolo
-labeling/labelstudio_exports/speed_sign_classification
+labeling/labelstudio_exports
 labeling/generated_createml
 
 ## Ignoring models
