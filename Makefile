@@ -1,3 +1,3 @@
 secretScan:
 	gitleaks detect --source=. --verbose
-	trufflehog filesystem .
+	trufflehog filesystem . --exclude_paths trufflehog-exclude-patterns.txt
