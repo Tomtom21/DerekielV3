@@ -1,0 +1,1 @@
+# For generating cropped vehicles from labeled frames for the vehicle classifier

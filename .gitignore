@@ -8,3 +8,19 @@ xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+## venv
+venv/
+
+## Ignoring notebooks
+notebooks/
+
+## Ignoring datasets
+labeling/labelstudio_exports
+labeling/generated_createml
+
+## Ignoring models
+training/yolo
+
+## Ignore all python c files
+*.pyc
