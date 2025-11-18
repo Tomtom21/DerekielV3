@@ -24,3 +24,6 @@ training/yolo
 
 ## Ignore all python c files
 *.pyc
+
+## Ignore scan files
+trufflehog-exclude-patterns.txt
