@@ -18,6 +18,7 @@ notebooks/
 ## Ignoring datasets
 labeling/labelstudio_exports
 labeling/generated_createml
+labeling/videos
 
 ## Ignoring models
 training/yolo
