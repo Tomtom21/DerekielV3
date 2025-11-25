@@ -67,3 +67,9 @@ labeling/
 - **videos/**: Raw video files used as sources for frame extraction.
   - **processed/**: Videos that have already been processed (frames extracted).
   - **unprocessed/**: Videos awaiting processing and labeling.
+
+
+## Labeling Process
+1. First start the labeling server. The instructions for this can be found in the auto_labeling_server directory.
+2. In a separate terminal, start the label-studio instance in terminal.
+3. Start labeling once both are started.
