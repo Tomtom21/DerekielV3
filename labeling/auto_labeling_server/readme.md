@@ -1,0 +1,1 @@
+To start the auto-labeling server, you can simply run the server.py script.

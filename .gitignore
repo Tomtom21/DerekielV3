@@ -10,7 +10,7 @@ xcuserdata/
 *.dSYM
 
 ## venv
-venv/
+**/venv/
 
 ## Ignoring notebooks
 notebooks/
@@ -19,12 +19,21 @@ notebooks/
 labeling/labelstudio_exports
 labeling/generated_createml
 labeling/videos
+training/auto_labeling_model/dataset
+labeling/unlabeled_frames
 
 ## Ignoring models
 training/yolo
+training/auto_labeling_model/output
+training/auto_labeling_model/*.pt
+labeling/auto_labeling_server/*.pt
 
 ## Ignore all python c files
 *.pyc
 
 ## Ignore scan files
 trufflehog-exclude-patterns.txt
+
+## Ignoring extra unimportant files
+labeling/auto_labeling_server/*.db
+
