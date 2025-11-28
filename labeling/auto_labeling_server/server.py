@@ -44,16 +44,23 @@ class YOLOBackend(LabelStudioMLBase):
         result_tasks = {
             "results": []
         }
+
+        # loop through each task and make predictions
         for task in tasks:
+            # Getting the image and processing it with YOLO
             image_url = task['data']['image']
             image = self.get_local_path(image_url)
             results = self.model(image)
+
+            # Looping through each box and converting them into predictions for Label
             predictions = []
-            for result in results:
+            for result in results: # This may not be necesary
                 boxes = result.boxes
                 orig_shape = result.orig_shape  # (height, width)
                 width = orig_shape[1]
                 height = orig_shape[0]
+
+                # Looping through our bounding boxes, converting them over
                 for box in boxes:
                     box_np = box.cpu().numpy()
                     x1, y1, x2, y2 = box_np.xyxy[0]
