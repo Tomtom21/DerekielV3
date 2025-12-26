@@ -1,6 +1,9 @@
 from torch import nn
 
 class ConvBlock(nn.Module):
+    """
+    Convolution Block for LaneNet Model
+    """
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
         super().__init__()
 
@@ -11,9 +14,21 @@ class ConvBlock(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Forward pass for ConvBlock
+
+        :param x: Input tensor
+        """
         return self.block(x)
 
 class LaneNet(nn.Module):
+    """
+    LaneNet Model that follows the following structure:
+    - Convolutional layers using ConvBlocks
+    - Adaptive Average Pooling
+    - 40 Fully connected layers
+        - 20 keypoints for each lane, with each pair of 2 being x and visibility
+    """
     def __init__(self):
         super().__init__()
 
@@ -36,6 +51,11 @@ class LaneNet(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Forward pass for LaneNet
+
+        :param x: Input tensor
+        """
         x = self.conv(x)
         x = self.pool(x)
         x = self.fc(x)
