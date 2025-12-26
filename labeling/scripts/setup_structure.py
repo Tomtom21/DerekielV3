@@ -6,7 +6,6 @@ def create_structure(base_dir: Path):
     (base_dir / "frames" / "unlabeled" / "images").mkdir(parents=True, exist_ok=True)
     (base_dir / "videos" / "processed").mkdir(parents=True, exist_ok=True)
     (base_dir / "videos" / "unprocessed").mkdir(parents=True, exist_ok=True)
-    (base_dir / "generated_createml").mkdir(parents=True, exist_ok=True)
     (base_dir / "scripts").mkdir(parents=True, exist_ok=True)
 
 if __name__ == "__main__":
