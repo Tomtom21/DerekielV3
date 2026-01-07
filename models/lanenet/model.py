@@ -58,5 +58,6 @@ class LaneNet(nn.Module):
         """
         x = self.conv(x)
         x = self.pool(x)
+        x = x.view(x.size(0), -1)  # Flatten to [batch_size, 256]
         x = self.fc(x)
         return x
