@@ -39,3 +39,7 @@ trufflehog-exclude-patterns.txt
 ## Ignoring extra unimportant files
 labeling/auto_labeling_server/*.db
 
+/data
+*.pth
+*.png
+*.mp4
