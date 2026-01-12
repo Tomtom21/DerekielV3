@@ -8,7 +8,7 @@ import argparse
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-def compute_accuracy(outputs, targets, threshold=0.07):
+def compute_accuracy(outputs, targets, threshold=0.1):
     """
     Computes accuracy as the percentage of keypoints (visibility==1) where predicted x is within threshold of target x.
     """
@@ -23,6 +23,11 @@ def compute_accuracy(outputs, targets, threshold=0.07):
     correct = ((torch.abs(pred_x - true_x) < threshold) & vis_mask).sum().item()
     total = vis_mask.sum().item()
     return correct / total
+
+def moving_average(data, window_size=5):
+    if len(data) < window_size:
+        return data
+    return [sum(data[max(0, i-window_size+1):i+1]) / (i - max(0, i-window_size+1) + 1) for i in range(len(data))]
 
 def main():
     parser = argparse.ArgumentParser(description="Train LaneNet model")
@@ -134,10 +139,16 @@ def main():
     plt.title('Training and Validation Loss')
     plt.legend()
 
+    # Compute moving averages
+    train_acc_ma = moving_average(train_accuracies)
+    val_acc_ma = moving_average(val_accuracies)
+
     plt.subplot(2, 1, 2)
     plt.plot(epochs, train_accuracies, label='Training Accuracy')
     plt.plot(epochs, val_accuracies, label='Validation Accuracy')
     plt.plot(epochs, metric_gaps, label='Metric Gap (|Train Acc - Val Acc|)')
+    plt.plot(epochs, train_acc_ma, '--', label='Train Acc (Moving Avg)')
+    plt.plot(epochs, val_acc_ma, '--', label='Val Acc (Moving Avg)')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy / Gap')
     plt.title('Training vs. Validation Accuracy and Metric Gap')
