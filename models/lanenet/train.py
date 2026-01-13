@@ -141,12 +141,14 @@ def main():
                 print(f"Early stopping triggered after {epoch+1} epochs.")
                 break
 
+        # Save the most recent model after each epoch
+        torch.save(model.state_dict(), "lanenet_last.pth")
+
     # Save the best model
     if best_model_state is not None:
-        torch.save(best_model_state, "lanenet.pth")
+        torch.save(best_model_state, "lanenet_best.pth")
     else:
-        torch.save(model.state_dict(), "lanenet.pth")
-    print("Training complete. Model saved as lanenet.pth.")
+        torch.save(model.state_dict(), "lanenet_best.pth")
 
     # Plot and save loss and accuracy graphs
     epochs = range(1, args.epochs + 1)
