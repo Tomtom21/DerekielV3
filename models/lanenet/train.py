@@ -37,6 +37,7 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--val_split', type=float, default=0.2, help='Fraction of data to use for validation')
     parser.add_argument('--patience', type=int, default=5, help='Early stopping patience (epochs)')
+    parser.add_argument('--model_path', type=str, default=None, help='Path to model weights to continue training')
     args = parser.parse_args()
 
     # Device selection: MPS > CUDA > CPU
@@ -65,6 +66,9 @@ def main():
 
     # Model, loss, optimizer
     model = LaneNet().to(device)
+    if args.model_path is not None:
+        print(f"Loading model weights from {args.model_path} to continue training...")
+        model.load_state_dict(torch.load(args.model_path, map_location=device))
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
