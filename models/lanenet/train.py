@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=10, help='Number of training epochs')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--val_split', type=float, default=0.2, help='Fraction of data to use for validation')
+    parser.add_argument('--patience', type=int, default=5, help='Early stopping patience (epochs)')
     args = parser.parse_args()
 
     # Device selection: MPS > CUDA > CPU
@@ -73,6 +74,11 @@ def main():
     train_accuracies = []
     val_accuracies = []
     metric_gaps = []
+
+    # Early stopping variables
+    best_val_loss = float('inf')
+    epochs_no_improve = 0
+    best_model_state = None
 
     # Training loop
     for epoch in range(args.epochs):
@@ -123,8 +129,23 @@ def main():
         # Metric gap (absolute difference in accuracy)
         metric_gaps.append(abs(epoch_acc - val_acc))
 
-    # Save the model
-    torch.save(model.state_dict(), "lanenet.pth")
+        # Early stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            epochs_no_improve = 0
+            best_model_state = model.state_dict()
+        else:
+            epochs_no_improve += 1
+            print(f"No improvement in validation loss for {epochs_no_improve} epoch(s).")
+            if epochs_no_improve >= args.patience:
+                print(f"Early stopping triggered after {epoch+1} epochs.")
+                break
+
+    # Save the best model
+    if best_model_state is not None:
+        torch.save(best_model_state, "lanenet.pth")
+    else:
+        torch.save(model.state_dict(), "lanenet.pth")
     print("Training complete. Model saved as lanenet.pth.")
 
     # Plot and save loss and accuracy graphs
