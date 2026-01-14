@@ -1,16 +1,24 @@
 import torch
 from torch.utils.data import Dataset
-from PIL import Image
+from PIL import Image, ImageFilter
 import json
 import pandas as pd
 from pathlib import Path
 import numpy as np
+import random
+from torchvision import transforms
 
 class LaneDataset(Dataset):
     """
     Custom Dataset for Lane Detection
     """
-    def __init__(self, dataset_dir, transform=None):
+    def __init__(
+        self, 
+        dataset_dir, 
+        transform=None, 
+        hflip_prob=0.2, 
+        blur_prob=0.2
+    ):
         # Getting the JSON and image dir from the dataset directory
         self.dataset_dir = Path(dataset_dir)
         self.image_dir = self.dataset_dir / 'images'
@@ -29,6 +37,8 @@ class LaneDataset(Dataset):
             self.annotations = json.load(f)
 
         self.transform = transform
+        self.hflip_prob = hflip_prob
+        self.blur_prob = blur_prob
 
     def __len__(self):
         """
@@ -36,6 +46,39 @@ class LaneDataset(Dataset):
         """
         return len(self.annotations)
     
+    def _augment(self, image, placed_keypoints):
+        """
+        Apply random augmentations to the image and adjust keypoints accordingly.
+        Returns the possibly augmented image and keypoints.
+        """
+        flipped = False
+        # Horizontal flip
+        if random.random() < self.hflip_prob:
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            flipped = True
+
+        # Only blur (no noise)
+        if random.random() < self.blur_prob:
+            image = image.filter(ImageFilter.GaussianBlur(radius=1.25))
+
+        # Adjust keypoints if flipped
+        if flipped:
+            flipped_keypoints = {}
+            for key, x in placed_keypoints.items():
+                if key.startswith('L_row_'):
+                    new_key = key.replace('L_row_', 'R_row_')
+                elif key.startswith('R_row_'):
+                    new_key = key.replace('R_row_', 'L_row_')
+                else:
+                    new_key = key
+                flipped_keypoints[new_key] = 1.0 - x
+            placed_keypoints = flipped_keypoints
+
+        # Applying color jitter
+        image = transforms.ColorJitter(brightness=0.5, contrast=0.2, saturation=0.1, hue=0.1)(image)
+
+        return image, placed_keypoints
+
     def __getitem__(self, idx):
         """
         Get a sample from the dataset
@@ -49,11 +92,8 @@ class LaneDataset(Dataset):
 
         # Load image
         image_path = self.image_dir / image_name
-        image = Image.open(image_path).convert("RGB")
-
-        # Apply transform if provided
-        if self.transform:
-            image = self.transform(image)
+        with Image.open(image_path) as img:
+            image = img.convert("RGB")
 
         # Making a look up table for available lane keypoints
         placed_keypoints = {}
@@ -64,7 +104,14 @@ class LaneDataset(Dataset):
                 if keypoint_label.startswith('L_row_') or keypoint_label.startswith('R_row_'):
                     x = label['x']/100.0
                     placed_keypoints[keypoint_label] = x
-        
+
+        # Data augmentation
+        image, placed_keypoints = self._augment(image, placed_keypoints)
+
+        # Apply user-provided transform (e.g., ToTensor, normalization)
+        if self.transform:
+            image = self.transform(image)
+
         # Generating our output tensor
         output = np.zeros(40, dtype=np.float32)  # 20 keypoints * 2 (x, visibility) = 40
 
