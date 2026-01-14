@@ -155,7 +155,7 @@ def main():
         torch.save(model.state_dict(), "lanenet_best.pth")
 
     # Plot and save loss and accuracy graphs
-    epochs = range(1, args.epochs + 1)
+    epochs = range(1, len(train_losses) + 1)
     plt.figure(figsize=(12, 8))
 
     plt.subplot(2, 1, 1)
