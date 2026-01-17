@@ -49,7 +49,7 @@ label_config = """
 
 # Setpoint rows: 10 y-positions from 85% to 35.5%, 5.5% apart (from top)
 def get_row_y_positions(img_height):
-    return [int(img_height * (0.85 - i * 0.055)) for i in range(10)]
+    return [float(img_height * (0.85 - i * 0.055)) for i in range(10)]
 
 class LaneNetBackend(LabelStudioMLBase):
     def __init__(self, model_path=None, **kwargs):
@@ -75,7 +75,7 @@ class LaneNetBackend(LabelStudioMLBase):
             "results": []
         }
         for task in tasks:
-            # Getting the image and processing it with YOLO
+            # Getting the image and processing it with LaneNet
             image_url = task['data']['img']
             image_path = self.get_local_path(image_url)
             orig_img = Image.open(image_path).convert("RGB")
