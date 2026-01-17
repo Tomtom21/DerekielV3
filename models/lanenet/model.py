@@ -12,13 +12,13 @@ class LaneNet(nn.Module):
         super().__init__()
         # Use ResNet18 backbone, remove the final classification layer
         backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1])  # Output: [batch, 512, 1, 1]
-        self.fc = nn.Sequential(
-            nn.Linear(512, 256),
+        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-2])  # Output: [batch, 512, 1, 1]
+        self.conv_head = nn.Sequential(
+            nn.Conv2d(512, 128, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
-            nn.Linear(256, 40)
+            nn.Conv2d(128, 40, kernel_size=1)
         )
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
     def forward(self, x):
         """
@@ -27,6 +27,7 @@ class LaneNet(nn.Module):
         :param x: Input tensor
         """
         x = self.feature_extractor(x)
-        x = x.view(x.size(0), -1)  # Flatten to [batch_size, 512]
-        x = self.fc(x)
+        x = self.conv_head(x)
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)  # Flatten to [batch_size, 40]
         return x
