@@ -8,18 +8,14 @@ import argparse
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-def compute_accuracy(outputs, targets, threshold=0.1):
+def compute_accuracy(pred_x, true_x, true_vis, threshold=0.1):
     """
     Computes accuracy as the percentage of keypoints (visibility==1) where predicted x is within threshold of target x.
     """
-    # outputs, targets: [batch, 40]
-    outputs = outputs.view(-1, 20, 2)
-    targets = targets.view(-1, 20, 2)
-    vis_mask = targets[:, :, 0] == 1  # Only consider visible keypoints
+    # pred_x, true_x, true_vis: [batch, 2, 10]
+    vis_mask = true_vis == 1  # Only consider visible keypoints
     if vis_mask.sum() == 0:
         return 0.0
-    pred_x = outputs[:, :, 1]
-    true_x = targets[:, :, 1]
     correct = ((torch.abs(pred_x - true_x) < threshold) & vis_mask).sum().item()
     total = vis_mask.sum().item()
     return correct / total
@@ -69,7 +65,8 @@ def main():
     if args.model_path is not None:
         print(f"Loading model weights from {args.model_path} to continue training...")
         model.load_state_dict(torch.load(args.model_path, map_location=device))
-    criterion = nn.MSELoss()
+    criterion_x = nn.MSELoss()
+    criterion_vis = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # Lists to store losses and accuracies for plotting
@@ -90,18 +87,23 @@ def main():
         running_loss = 0.0
         running_acc = 0.0
         progress_bar = tqdm(train_loader, desc=f"Epoch [{epoch+1}/{args.epochs}]", leave=False)
-        for images, targets in progress_bar:
+        for images, x_targets, vis_targets in progress_bar:
             images = images.to(device)
-            targets = targets.to(device)
+            x_targets = x_targets.to(device)
+            vis_targets = vis_targets.to(device)
 
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, targets)
+            pred_x, pred_vis_logits = model(images)
+            loss_x = criterion_x(pred_x, x_targets)
+            loss_vis = criterion_vis(pred_vis_logits, vis_targets)
+            loss = loss_x + loss_vis
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item() * images.size(0)
-            acc = compute_accuracy(outputs.detach().cpu(), targets.detach().cpu())
+            acc = compute_accuracy(
+                pred_x.detach().cpu(), x_targets.detach().cpu(), vis_targets.detach().cpu()
+            )
             running_acc += acc * images.size(0)
             progress_bar.set_postfix(loss=loss.item(), acc=acc)
 
@@ -116,13 +118,18 @@ def main():
         val_loss = 0.0
         val_acc = 0.0
         with torch.no_grad():
-            for images, targets in val_loader:
+            for images, x_targets, vis_targets in val_loader:
                 images = images.to(device)
-                targets = targets.to(device)
-                outputs = model(images)
-                loss = criterion(outputs, targets)
+                x_targets = x_targets.to(device)
+                vis_targets = vis_targets.to(device)
+                pred_x, pred_vis_logits = model(images)
+                loss_x = criterion_x(pred_x, x_targets)
+                loss_vis = criterion_vis(pred_vis_logits, vis_targets)
+                loss = loss_x + loss_vis
                 val_loss += loss.item() * images.size(0)
-                acc = compute_accuracy(outputs.cpu(), targets.cpu())
+                acc = compute_accuracy(
+                    pred_x.cpu(), x_targets.cpu(), vis_targets.cpu()
+                )
                 val_acc += acc * images.size(0)
         val_loss /= len(val_loader.dataset)
         val_acc /= len(val_loader.dataset)
