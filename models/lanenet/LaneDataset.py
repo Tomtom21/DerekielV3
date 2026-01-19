@@ -13,10 +13,10 @@ class LaneDataset(Dataset):
     Custom Dataset for Lane Detection
     """
     def __init__(
-        self, 
-        dataset_dir, 
-        transform=None, 
-        hflip_prob=0.2, 
+        self,
+        dataset_dir,
+        transform=None,
+        hflip_prob=0.2,
         blur_prob=0.2
     ):
         # Getting the JSON and image dir from the dataset directory
@@ -31,7 +31,7 @@ class LaneDataset(Dataset):
         # Making sure the annotation file exists
         if not self.annotation_file.is_file():
             raise FileNotFoundError(f"Annotation file not found: {self.annotation_file}")
-        
+
         # Load annotations
         with open(self.annotation_file, 'r') as f:
             self.annotations = json.load(f)
@@ -108,26 +108,28 @@ class LaneDataset(Dataset):
         # Data augmentation
         image, placed_keypoints = self._augment(image, placed_keypoints)
 
-        # Apply user-provided transform (e.g., ToTensor, normalization)
-        if self.transform:
-            image = self.transform(image)
+        # Generating our output arrays for x_positions and visibility
+        x_positions = np.zeros((2, 10), dtype=np.float32)      # [num_lanes, num_rows]
+        visibility = np.zeros((2, 10), dtype=np.float32)       # [num_lanes, num_rows]
 
-        # Generating our output tensor
-        output = np.zeros(40, dtype=np.float32)  # 20 keypoints * 2 (x, visibility) = 40
-
-        for side, offset in zip(['L_row', 'R_row'], [0, 10]):
+        for side, lane_idx in zip(['L_row', 'R_row'], [0, 1]):
             for keypoint_idx in range(10):
                 keypoint_name = f"{side}_{keypoint_idx}"
                 if keypoint_name in placed_keypoints:
                     x = placed_keypoints[keypoint_name]
-                    visibility = 1.0
+                    vis = 1.0
                 else:
                     x = 0.0
-                    visibility = 0.0
-                output[(offset + keypoint_idx) * 2] = visibility
-                output[(offset + keypoint_idx) * 2 + 1] = x
+                    vis = 0.0
+                x_positions[lane_idx, keypoint_idx] = x
+                visibility[lane_idx, keypoint_idx] = vis
 
-        # Convert output to tensor
-        output_tensor = torch.tensor(output, dtype=torch.float32)
+        # Convert outputs to tensors
+        x_positions_tensor = torch.tensor(x_positions, dtype=torch.float32)
+        visibility_tensor = torch.tensor(visibility, dtype=torch.float32)
 
-        return image, output_tensor
+        # Apply user-provided transform (e.g., ToTensor, normalization)
+        if self.transform:
+            image = self.transform(image)
+
+        return image, x_positions_tensor, visibility_tensor
