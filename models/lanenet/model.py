@@ -1,5 +1,4 @@
-from torch import nn, linspace
-import torch.nn.functional as F
+from torch import nn
 from torchvision import models
 
 class LaneNet(nn.Module):
@@ -9,33 +8,43 @@ class LaneNet(nn.Module):
     - Adaptive pooling (from ResNet)
     - Fully connected layers for 40 outputs (20 keypoints, each with x and visibility)
     """
-    def __init__(self, num_rows=10, num_lanes=2, softmax_temp=0.2):
+    def __init__(self, num_rows=10, points_per_row=2):
         super().__init__()
-
-        self.num_rows = num_rows
-        self.num_lanes = num_lanes
-        self.num_kp = num_rows * num_lanes  # Total keypoints
-        self.softmax_temp = softmax_temp
-            
         # Use ResNet18 backbone, remove the final classification layer
         backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-
-        # Getting the feature map extractions
         self.feature_extractor = nn.Sequential(*list(backbone.children())[:-2])  # Output: [batch, 512, 1, 1]
         
-        # Getting one spatial map for each potential keypoint
-        self.row_lane_head = nn.Sequential(
-            nn.Conv2d(512, 128, kernel_size=3, padding=1),
+        self.conv_reduction = nn.Sequential(
+            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, self.num_kp, kernel_size=1)
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128)
         )
-        
-        # Getting visibility information (not spatial)
+
+        # Trunk fully connected layer
+        self.shared_fc = nn.Sequential(
+            nn.Linear(4096, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+        )
+
+        self.x_position_head = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, 20),  # 20 x-positions
+            nn.Sigmoid()
+        )
+
         self.visibility_head = nn.Sequential(
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.Linear(512, self.num_kp)
+            nn.Linear(512, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, 20)  # 20 visibility scores
+            #activation function??
         )
+
 
     def forward(self, x):
         """
@@ -43,30 +52,27 @@ class LaneNet(nn.Module):
 
         :param x: Input tensor
         """
+        # Getting the batch size
         batch_size = x.size(0)
 
         # Feature extraction
         features = self.feature_extractor(x)  # [batch, 512, H, W]
-    
-        # Row-lane spatial maps, collapsing the height dimension
-        maps = self.row_lane_head(features)  # [batch, num_kp, H, W]
-        maps = maps.mean(dim=2)
 
-        # Setting the fixed x positions to multiply against
-        map_width = maps.size(2)
-        fixed_x_coords = linspace(
-            0.0, 1.0, map_width, device=maps.device
-        ).view(1,1, map_width)  # [1, 1, W]
+        # Convolutions
+        conv_features = self.conv_reduction(features)  # [batch, 20, H', W']
 
-        # Running softmax for dist sum to 1, then multiply out to get position
-        prob = F.softmax(maps / self.softmax_temp, dim=2)  # [batch, num_kp, W]
-        x_positions = (prob * fixed_x_coords).sum(dim=2)  # [batch, num_kp]
-        
-        # Visibility head
-        visibility_logits = self.visibility_head(features)  # [batch, num_kp]
+        # Flattening for fully connected layers
+        flattened_features = conv_features.flatten(start_dim=1) # [batch, 128, 4, 8] -> [batch, 4096]
 
-        # Reshaping both to [batch, 2, 10] for 2 lanes, 10 rows each
-        x_positions = x_positions.view(batch_size, self.num_lanes, self.num_rows)
-        visibility_logits = visibility_logits.view(batch_size, self.num_lanes, self.num_rows)
+        # FC Trunk
+        trunk = self.shared_fc(flattened_features)  # [batch, 512]
 
-        return x_positions, visibility_logits
+        # X position and visibility heads
+        x_positions = self.x_position_head(trunk)  # [batch, 20]
+        visibility_scores = self.visibility_head(trunk)  # [batch, 20]
+
+        # Reshaping to [batch, 2, 10]
+        x_positions = x_positions.view(batch_size, 2, 10)
+        visibility_scores = visibility_scores.view(batch_size, 2, 10)
+
+        return x_positions, visibility_scores
