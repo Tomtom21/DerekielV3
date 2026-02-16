@@ -1,5 +1,6 @@
-from torch import nn
+from torch import nn, linspace
 from torchvision import models
+import torch.nn.functional as F
 
 class LaneNet(nn.Module):
     """
@@ -10,41 +11,27 @@ class LaneNet(nn.Module):
     """
     def __init__(self, num_rows=10, points_per_row=2):
         super().__init__()
+        self.num_rows = num_rows
+        self.points_per_row = points_per_row
+
         # Use ResNet18 backbone, remove the final classification layer
         backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-2])  # Output: [batch, 512, 1, 1]
-        
-        self.conv_reduction = nn.Sequential(
-            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
+        # self.feature_extractor = nn.Sequential(*list(backbone.children())[:-2])  # Output: [batch, 512, 1, 1]
+        self.backbone_processing = nn.Sequential(
+            backbone.conv1,   # stride 2
+            backbone.bn1,
+            backbone.relu,
+            backbone.maxpool, # stride 2 (total 4)
+            backbone.layer1,  # stride 4
+            backbone.layer2,  # stride 8
+        )
+
+        self.feature_refine = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128)
+            nn.Conv2d(128, points_per_row, kernel_size=1),
         )
-
-        # Trunk fully connected layer
-        self.shared_fc = nn.Sequential(
-            nn.Linear(4096, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-        )
-
-        self.x_position_head = nn.Sequential(
-            nn.Linear(512, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 20),  # 20 x-positions
-            nn.Sigmoid()
-        )
-
-        self.visibility_head = nn.Sequential(
-            nn.Linear(512, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 20)  # 20 visibility scores
-            #activation function??
-        )
-
 
     def forward(self, x):
         """
@@ -56,23 +43,39 @@ class LaneNet(nn.Module):
         batch_size = x.size(0)
 
         # Feature extraction
-        features = self.feature_extractor(x)  # [batch, 512, H, W]
+        features = self.backbone_processing(x)  # [batch, 512, H, W]
 
-        # Convolutions
-        conv_features = self.conv_reduction(features)  # [batch, 20, H', W']
+        # Convolutions/pooling
+        heatmaps = self.feature_refine(features)  # [batch, 20, H', W']
+        heatmaps = F.interpolate(
+            heatmaps,
+            size=(self.num_rows, heatmaps.shape[-1]),
+            mode="bilinear",
+            align_corners=False
+        )
 
-        # Flattening for fully connected layers
-        flattened_features = conv_features.flatten(start_dim=1) # [batch, 128, 4, 8] -> [batch, 4096]
-
-        # FC Trunk
-        trunk = self.shared_fc(flattened_features)  # [batch, 512]
-
-        # X position and visibility heads
-        x_positions = self.x_position_head(trunk)  # [batch, 20]
-        visibility_scores = self.visibility_head(trunk)  # [batch, 20]
-
-        # Reshaping to [batch, 2, 10]
+        # Decode to match dataset format
+        x_positions, visibility_scores = self._decode_heatmaps(heatmaps)
         x_positions = x_positions.view(batch_size, 2, 10)
+
         visibility_scores = visibility_scores.view(batch_size, 2, 10)
+
+        return x_positions, visibility_scores
+
+    def _decode_heatmaps(self, heatmaps):
+        """
+        heatmaps: [B, 2, 10, W]
+        """
+        # Softmax over width
+        probs = F.softmax(heatmaps, dim=-1)
+
+        W = heatmaps.shape[-1]
+        idx = linspace(0, 1, W, device=heatmaps.device)
+
+        # Soft-argmax
+        x_positions = (probs * idx).sum(dim=-1)
+
+        # Visibility = peak confidence per row
+        visibility_scores = heatmaps.max(dim=-1).values
 
         return x_positions, visibility_scores
