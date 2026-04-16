@@ -1,3 +1,5 @@
+This project is being set aside for a higher priority weather-based project. All past work that has been private will be made public soon.
+
 ```mermaid
 graph TD;
     %% Legend
